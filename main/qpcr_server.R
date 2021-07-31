@@ -49,10 +49,27 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
         1 * (1/input$dilution)^6, 
         1 * (1/input$dilution)^7
       )) %>%
-      dplyr::mutate(temp.conc = log(relativa.conc)) %>%
+      dplyr::mutate(temp.conc = log(relativa.conc,base = 2)) %>%
       dplyr::mutate(Relative.Conc = temp.conc + max(abs(temp.conc))) %>%
       dplyr::select(1:12, 16)
-
+    
+    
+    min1 = min(min(df[2:7,1]),min(df[2:7,2]),min(df[2:7,3]),min(df[2:7,4]))
+    max1 = max(max(df[2:7,1]),max(df[2:7,2]),max(df[2:7,3]),max(df[2:7,4]))
+    
+    min2 = min(min(df[2:7,5]),min(df[2:7,6]),min(df[2:7,7]),min(df[2:7,8]))
+    max2 = max(max(df[2:7,5]),max(df[2:7,6]),max(df[2:7,7]),max(df[2:7,8]))
+    
+    min3 = min(min(df[2:7,9]),min(df[2:7,10]),min(df[2:7,11]),min(df[2:7,12]))
+    max3 = max(max(df[2:7,9]),max(df[2:7,10]),max(df[2:7,11]),max(df[2:7,12]))
+    
+    df.max.min = data.frame(Gene.name = c(input$gene_name_1,
+                                          input$gene_name_2,
+                                          input$gene_name_3),
+                            Min = c(min1, min2, min3),
+                            Max = c(max1, max2, max3))
+    
+    
 
     df.gene.1 <- df[2:7, c(13, 1:4)]
     mean.value.1 <- c()
@@ -122,7 +139,7 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
     df.temp.1 <- data.frame(
       Gene.name = input$gene_name_1,
       Date = as.character(Sys.Date()),
-      Description = "",
+      #Description = "",
       Formula = formula,
       Slope = slope,
       Intercept = intercept,
@@ -151,7 +168,7 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
     df.temp.2 <- data.frame(
       Gene.name = input$gene_name_2,
       Date = as.character(Sys.Date()),
-      Description = "",
+      #Description = "",
       Formula = formula,
       Slope = slope,
       Intercept = intercept,
@@ -180,7 +197,7 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
     df.temp.3 <- data.frame(
       Gene.name = input$gene_name_3,
       Date = as.character(Sys.Date()),
-      Description = "",
+      #Description = "",
       Formula = formula,
       Slope = slope,
       Intercept = intercept,
@@ -189,7 +206,11 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
       Other = ""
     )
     # 合并数据
-    res <- rbind(df.temp.1, df.temp.2, df.temp.3) %>% as.data.frame()
+    res <- rbind(df.temp.1, df.temp.2, df.temp.3) %>% 
+      as.data.frame() %>% 
+      merge(df.max.min, by = 'Gene.name')
+    res <- res[!duplicated(res$Gene.name),] %>% 
+      dplyr::select(Gene.name,Date,Formula,Slope,Intercept,R2.adj,P.Value,Max,Min,Other)
 
     # 保存分析结果
     if(input$qpcr_stat_res_filetype == '.xlsx') {
@@ -307,15 +328,15 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       parse = T,
       rr.digits = 4,
       coef.digits = 3,
-      label.x = c(0.1),
-      label.y = c(0.05)
+      label.x = c(0.05),
+      label.y = c(0.03)
       ) +
-      geom_vline(xintercept = 8, color = "white") +
-      labs(title = input$gene_name_1,x = "Relative.Conc (log)", y = "Cq") +
+      geom_vline(xintercept = max(df.gene.1$Relative.Conc) + 0.5, color = "white") +
+      labs(title = input$gene_name_1,x = "Relative.Conc (log2)", y = "Cq") +
       # expand_limits(x = 0) +
       scale_y_continuous(breaks = seq(20, 40, 2)) +
       scale_x_continuous(breaks = seq(0, max(df.gene.1$Relative.Conc) + 1, 0.5)) +
-      theme_prism(base_size = 12)
+      theme_prism(base_size = 10)
     p.1
     
     
@@ -338,15 +359,15 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       parse = T,
       rr.digits = 4,
       coef.digits = 3,
-      label.x = c(0.1),
-      label.y = c(0.05)
+      label.x = c(0.05),
+      label.y = c(0.03)
       ) +
-      geom_vline(xintercept = 8, color = "white") +
-      labs(title = input$gene_name_1,x = "Relative.Conc (log)", y = "Cq") +
+      geom_vline(xintercept = max(df.gene.2$Relative.Conc) + 0.5, color = "white") +
+      labs(title = input$gene_name_2,x = "Relative.Conc (log2)", y = "Cq") +
       # expand_limits(x = 0) +
       scale_y_continuous(breaks = seq(20, 40, 2)) +
       scale_x_continuous(breaks = seq(0, max(df.gene.1$Relative.Conc) + 1, 0.5)) +
-      theme_prism(base_size = 12)
+      theme_prism(base_size = 10)
     p.2
     
     # gene3
@@ -368,15 +389,15 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       parse = T,
       rr.digits = 4,
       coef.digits = 3,
-      label.x = c(0.1),
-      label.y = c(0.05)
+      label.x = c(0.05),
+      label.y = c(0.03)
       ) +
-      geom_vline(xintercept = 8, color = "white") +
-      labs(title = input$gene_name_1,x = "Relative.Conc (log)", y = "Cq") +
+      geom_vline(xintercept = max(df.gene.3$Relative.Conc) + 0.5, color = "white") +
+      labs(title = input$gene_name_3,x = "Relative.Conc (log2)", y = "Cq") +
       # expand_limits(x = 0) +
       scale_y_continuous(breaks = seq(20, 40, 2)) +
       scale_x_continuous(breaks = seq(0, max(df.gene.1$Relative.Conc) + 1, 0.5)) +
-      theme_prism(base_size = 12)
+      theme_prism(base_size = 10)
     p.3
     
     
