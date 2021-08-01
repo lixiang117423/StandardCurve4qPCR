@@ -120,15 +120,15 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
 
     # 构建模型
     # gene1
-    fit <- lm(Cq ~ Relative.Conc, data = df.gene.1)
+    fit <- lm(Relative.Conc ~ Mean, data = df.gene.1)
     intercept <- fit[["coefficients"]][["(Intercept)"]] %>%
       round(2)
-    slope <- fit[["coefficients"]][["Relative.Conc"]] %>%
+    slope <- fit[["coefficients"]][["Mean"]] %>%
       round(2)
 
     formula <- paste0("RC = ", intercept, slope, " x Cq")
 
-    adj.r.2 <- broom::glance(fit)[1, 2] %>%
+    r.2 <- broom::glance(fit)[1, 1] %>%
       round(4) %>%
       as.numeric()
 
@@ -143,21 +143,21 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
       Formula = formula,
       Slope = slope,
       Intercept = intercept,
-      R2.adj = adj.r.2,
+      R2 = r.2,
       P.Value = p.value,
       Other = ""
     )
 
     # gene2
-    fit <- lm(Cq ~ Relative.Conc, data = df.gene.2)
+    fit <- lm(Relative.Conc ~ Mean, data = df.gene.2)
     intercept <- fit[["coefficients"]][["(Intercept)"]] %>%
       round(2)
-    slope <- fit[["coefficients"]][["Relative.Conc"]] %>%
+    slope <- fit[["coefficients"]][["Mean"]] %>%
       round(2)
 
     formula <- paste0("RC = ", intercept, slope, " x Cq")
 
-    adj.r.2 <- broom::glance(fit)[1, 2] %>%
+    r.2 <- broom::glance(fit)[1, 1] %>%
       round(4) %>%
       as.numeric()
 
@@ -172,21 +172,21 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
       Formula = formula,
       Slope = slope,
       Intercept = intercept,
-      R2.adj = adj.r.2,
+      R2 = r.2,
       P.Value = p.value,
       Other = ""
     )
 
     # gene3
-    fit <- lm(Cq ~ Relative.Conc, data = df.gene.3)
+    fit <- lm(Relative.Conc ~ Mean, data = df.gene.3)
     intercept <- fit[["coefficients"]][["(Intercept)"]] %>%
       round(2)
-    slope <- fit[["coefficients"]][["Relative.Conc"]] %>%
+    slope <- fit[["coefficients"]][["Mean"]] %>%
       round(2)
 
     formula <- paste0("RC = ", intercept, slope, " x Cq")
 
-    adj.r.2 <- broom::glance(fit)[1, 2] %>%
+    r.2 <- broom::glance(fit)[1, 1] %>%
       round(4) %>%
       as.numeric()
 
@@ -201,7 +201,7 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
       Formula = formula,
       Slope = slope,
       Intercept = intercept,
-      R2.adj = adj.r.2,
+      R2 = r.2,
       P.Value = p.value,
       Other = ""
     )
@@ -210,7 +210,11 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
       as.data.frame() %>% 
       merge(df.max.min, by = 'Gene.name')
     res <- res[!duplicated(res$Gene.name),] %>% 
-      dplyr::select(Gene.name,Date,Formula,Slope,Intercept,R2.adj,P.Value,Max,Min,Other)
+      dplyr::select(Gene.name,Date,Formula,Slope,Intercept,R2,P.Value,Max,Min,Other)
+    
+    res <- res[Gene.name %in% c(input$gene_name_1,
+                                input$gene_name_2,
+                                input$gene_name_3),]
 
     # 保存分析结果
     if(input$qpcr_stat_res_filetype == '.xlsx') {
@@ -255,7 +259,7 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
         1 * (1/input$dilution)^6, 
         1 * (1/input$dilution)^7
       )) %>%
-      dplyr::mutate(temp.conc = log(relativa.conc)) %>%
+      dplyr::mutate(temp.conc = log(relativa.conc,base = 2)) %>%
       dplyr::mutate(Relative.Conc = temp.conc + max(abs(temp.conc))) %>%
       dplyr::select(1:12, 16)
     
@@ -309,10 +313,8 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
     
     # 绘图
     # gene1
-    p.1 <- ggplot(df.gene.1, aes(Relative.Conc, Mean)) +
-      geom_errorbar(aes(ymin = Mean - SD,
-                        ymax = Mean + SD),
-                    width = 0.3) +
+    p.1 <- ggplot(df.gene.1, aes(Mean, Relative.Conc)) +
+      #geom_errorbar(aes(ymin = Mean - SD,ymax = Mean + SD),width = 0.3) +
       geom_smooth(
         formula = y ~ x,
         method = "lm",
@@ -320,7 +322,9 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       ) +
       geom_point() +
       
-      stat_poly_eq(aes(label = paste(..eq.label.., ..adj.rr.label..,
+      stat_poly_eq(aes(label = paste(..eq.label.., 
+                                     #..adj.rr.label..,
+                                     ..rr.label..,
                                      ..p.value.label..,
                                      sep = "~~~~"
       )),
@@ -331,27 +335,29 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       label.x = c(0.05),
       label.y = c(0.03)
       ) +
-      geom_vline(xintercept = max(df.gene.1$Relative.Conc) + 0.5, color = "white") +
-      labs(title = input$gene_name_1,x = "Relative.Conc (log2)", y = "Cq") +
-      # expand_limits(x = 0) +
-      scale_y_continuous(breaks = seq(20, 40, 2)) +
-      scale_x_continuous(breaks = seq(0, max(df.gene.1$Relative.Conc) + 1, 0.5)) +
+      #geom_vline(xintercept = max(df.gene.1$Relative.Conc) + 0.5, color = "white") +
+      labs(title = input$gene_name_1,y = "Relative.Conc (log2)", x = "Cq") +
+      scale_y_continuous(breaks = round(seq(min(df.gene.1$Relative.Conc), 
+                                            max(df.gene.1$Relative.Conc), 1),2)) +
+      scale_x_continuous(breaks = round(seq(min(df.gene.1$Mean), 
+                                            max(df.gene.1$Mean) + 1, 1),1)) +
       theme_prism(base_size = 10)
     p.1
     
     
     # gene2
-    p.2 <- ggplot(df.gene.2, aes(Relative.Conc, Mean)) +
-      geom_errorbar(aes(ymin = Mean - SD,
-                        ymax = Mean + SD),
-                    width = 0.3) +
+    p.2 <- ggplot(df.gene.2, aes(Mean, Relative.Conc)) +
+      #geom_errorbar(aes(ymin = Mean - SD,ymax = Mean + SD),width = 0.3) +
       geom_smooth(
         formula = y ~ x,
         method = "lm",
         se = TRUE, colour = "black", span = 0.8
       ) +
       geom_point() +
-      stat_poly_eq(aes(label = paste(..eq.label.., ..adj.rr.label..,
+      
+      stat_poly_eq(aes(label = paste(..eq.label.., 
+                                     #..adj.rr.label..,
+                                     ..rr.label..,
                                      ..p.value.label..,
                                      sep = "~~~~"
       )),
@@ -362,26 +368,28 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       label.x = c(0.05),
       label.y = c(0.03)
       ) +
-      geom_vline(xintercept = max(df.gene.2$Relative.Conc) + 0.5, color = "white") +
-      labs(title = input$gene_name_2,x = "Relative.Conc (log2)", y = "Cq") +
-      # expand_limits(x = 0) +
-      scale_y_continuous(breaks = seq(20, 40, 2)) +
-      scale_x_continuous(breaks = seq(0, max(df.gene.1$Relative.Conc) + 1, 0.5)) +
+      #geom_vline(xintercept = max(df.gene.1$Relative.Conc) + 0.5, color = "white") +
+      labs(title = input$gene_name_2,y = "Relative.Conc (log2)", x = "Cq") +
+      scale_y_continuous(breaks = round(seq(min(df.gene.2$Relative.Conc), 
+                                            max(df.gene.3$Relative.Conc), 1),2)) +
+      scale_x_continuous(breaks = round(seq(min(df.gene.2$Mean), 
+                                            max(df.gene.2$Mean) + 1, 1),1)) +
       theme_prism(base_size = 10)
     p.2
     
     # gene3
-    p.3 <- ggplot(df.gene.3, aes(Relative.Conc, Mean)) +
-      geom_errorbar(aes(ymin = Mean - SD,
-                        ymax = Mean + SD),
-                    width = 0.3) +
+    p.3 <- ggplot(df.gene.3, aes(Mean, Relative.Conc)) +
+      #geom_errorbar(aes(ymin = Mean - SD,ymax = Mean + SD),width = 0.3) +
       geom_smooth(
         formula = y ~ x,
         method = "lm",
         se = TRUE, colour = "black", span = 0.8
       ) +
       geom_point() +
-      stat_poly_eq(aes(label = paste(..eq.label.., ..adj.rr.label..,
+      
+      stat_poly_eq(aes(label = paste(..eq.label.., 
+                                     #..adj.rr.label..,
+                                     ..rr.label..,
                                      ..p.value.label..,
                                      sep = "~~~~"
       )),
@@ -392,11 +400,12 @@ plot_table_qpcr <- eventReactive(input$submit_qpcr, {
       label.x = c(0.05),
       label.y = c(0.03)
       ) +
-      geom_vline(xintercept = max(df.gene.3$Relative.Conc) + 0.5, color = "white") +
-      labs(title = input$gene_name_3,x = "Relative.Conc (log2)", y = "Cq") +
-      # expand_limits(x = 0) +
-      scale_y_continuous(breaks = seq(20, 40, 2)) +
-      scale_x_continuous(breaks = seq(0, max(df.gene.1$Relative.Conc) + 1, 0.5)) +
+      #geom_vline(xintercept = max(df.gene.1$Relative.Conc) + 0.5, color = "white") +
+      labs(title = input$gene_name_3,y = "Relative.Conc (log2)", x = "Cq") +
+      scale_y_continuous(breaks = round(seq(min(df.gene.3$Relative.Conc), 
+                                            max(df.gene.3$Relative.Conc), 1),2)) +
+      scale_x_continuous(breaks = round(seq(min(df.gene.3$Mean), 
+                                            max(df.gene.3$Mean) + 1, 1),1)) +
       theme_prism(base_size = 10)
     p.3
     
