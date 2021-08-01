@@ -212,9 +212,14 @@ df_table_qpcr <- eventReactive(input$submit_qpcr, {
     res <- res[!duplicated(res$Gene.name),] %>% 
       dplyr::select(Gene.name,Date,Formula,Slope,Intercept,R2,P.Value,Max,Min,Other)
     
-    res <- res[res$Gene.name %in% c(input$gene_name_1,
-                                    input$gene_name_2,
-                                    input$gene_name_3),]
+    res.1 = res %>% 
+      dplyr::filter(Gene.name == input$gene_name_1)
+    res.2 = res %>% 
+      dplyr::filter(Gene.name == input$gene_name_2)
+    res.3 = res %>% 
+      dplyr::filter(Gene.name == input$gene_name_3)
+    
+    res <- rbind(res.1,res.2,res.3)
 
     # 保存分析结果
     if(input$qpcr_stat_res_filetype == '.xlsx') {
